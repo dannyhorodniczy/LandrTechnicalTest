@@ -26,7 +26,9 @@ public class GeolocationController : ControllerBase
     {
         if (this.Request.HttpContext.Connection.RemoteIpAddress == null)
         {
-            return NotFound("Unable to determine the remote IP address.");
+            const string noRemoteIpMessage = "Unable to determine the remote IP address.";
+            _logger.LogInformation(noRemoteIpMessage);
+            return NotFound(noRemoteIpMessage);
         }
 
         try
@@ -35,18 +37,20 @@ public class GeolocationController : ControllerBase
             // per request?
             // per lifetime of the controller?
             using var reader = new DatabaseReader(_databasePath);
-            //var ipAddress = this.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
-            var ipAddress = "206.172.131.27";
+            var ipAddress = this.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
             var response = reader.Country(ipAddress);
-            // TODOL double check that the country code cannot possibly be null
-            return Ok(new GetGeolocationResponse(ipAddress.ToString(), response.Country.IsoCode!));
+
+            // TODO: double check that the country code cannot possibly be null
+            return Ok(new GetGeolocationResponse(ipAddress.ToString(), isoCode: response.Country.IsoCode!));
         }
         catch (AddressNotFoundException e)
         {
+            _logger.LogError(e, "Address not found.");
             return BadRequest(e.Message);
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            _logger.LogError(e, "Unknown error occurred.");
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
@@ -63,15 +67,12 @@ public class GeolocationController : ControllerBase
             {
                 var country = reader.Country(ipAddress);
                 // TODO: double check that the country code cannot possibly be null
-                response.Add(new GetGeolocationResponse(ipAddress, country.Country.IsoCode!));
+                response.Add(new GetGeolocationResponse(ipAddress, isoCode: country.Country.IsoCode!));
             }
-            catch (AddressNotFoundException e)
+            catch (Exception e)
             {
-                response.Add(new GetGeolocationResponse(ipAddress, e.Message));
-            }
-            catch (Exception)
-            {
-                response.Add(new GetGeolocationResponse(ipAddress, "Some shit went down. Ain't got no idea."));
+                _logger.LogError(e, "Unknown error occurred.");
+                response.Add(new GetGeolocationResponse(ipAddress, errorMessage: e.Message));
             }
         }
 
@@ -83,4 +84,4 @@ public record GetGeolocationsRequest(IEnumerable<string> ipAddresses);
 
 public record GetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations);
 
-public record GetGeolocationResponse(string ipAddress, string isoCode);
+public record GetGeolocationResponse(string ipAddress, string? isoCode = null, string? errorMessage = null);
