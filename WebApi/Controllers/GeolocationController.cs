@@ -14,10 +14,11 @@ namespace WebApi.Controllers;
 public class GeolocationController : ControllerBase
 {
     private readonly ILogger<GeolocationController> _logger;
-    private readonly string _databasePath = "GeoLite2-Country_20250227/GeoLite2-Country.mmdb";
+    private readonly IGeoIP2DatabaseReader _dbReader;
 
-    public GeolocationController(ILogger<GeolocationController> logger)
+    public GeolocationController(IGeoIP2DatabaseReader dbReader, ILogger<GeolocationController> logger)
     {
+        _dbReader = dbReader;
         _logger = logger;
     }
 
@@ -28,60 +29,57 @@ public class GeolocationController : ControllerBase
         {
             const string noRemoteIpMessage = "Unable to determine the remote IP address.";
             _logger.LogInformation(noRemoteIpMessage);
-            return NotFound(noRemoteIpMessage);
+            return BadRequest(noRemoteIpMessage);
         }
 
         try
         {
-            // TODO: determine best practice on how often to create a new DatabaseReader
-            // per request?
-            // per lifetime of the controller?
-            using var reader = new DatabaseReader(_databasePath);
-            var ipAddress = this.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
-            var response = reader.Country(ipAddress);
-
-            // TODO: double check that the country code cannot possibly be null
-            return Ok(new GetGeolocationResponse(ipAddress.ToString(), isoCode: response.Country.IsoCode!));
+            var countryResponse = _dbReader.Country(this.Request.HttpContext.Connection.RemoteIpAddress);
+            var response = new GetGeolocationResponse(
+                this.Request.HttpContext.Connection.RemoteIpAddress.ToString(),
+                country: countryResponse.Country);
+            return Ok(response);
         }
         catch (AddressNotFoundException e)
         {
             _logger.LogError(e, "Address not found.");
-            return BadRequest(e.Message);
+            var response = new GetGeolocationResponse(
+                this.Request.HttpContext.Connection.RemoteIpAddress.ToString(),
+                errorMessage: e.Message);
+            return NotFound(response);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Unknown error occurred.");
-            return StatusCode(StatusCodes.Status500InternalServerError);
+            var response = new GetGeolocationResponse(
+                this.Request.HttpContext.Connection.RemoteIpAddress.ToString(),
+                errorMessage: e.Message);
+            return StatusCode(StatusCodes.Status500InternalServerError, response);
         }
     }
 
     [HttpPost]
     public IActionResult GetGeolocations(GetGeolocationsRequest request)
     {
-        using var reader = new DatabaseReader(_databasePath);
-        var response = new List<GetGeolocationResponse>(request.ipAddresses.Count());
+        var geolocations = new List<GetGeolocationResponse>(request.IpAddresses.Count());
 
-        foreach (var ipAddress in request.ipAddresses)
+        foreach (var ipAddress in request.IpAddresses)
         {
             try
             {
-                var country = reader.Country(ipAddress);
-                // TODO: double check that the country code cannot possibly be null
-                response.Add(new GetGeolocationResponse(ipAddress, isoCode: country.Country.IsoCode!));
+                var countryResponse = _dbReader.Country(ipAddress);
+                var geolocation = new GetGeolocationResponse(ipAddress, country: countryResponse.Country);
+                geolocations.Add(geolocation);
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "Unknown error occurred.");
-                response.Add(new GetGeolocationResponse(ipAddress, errorMessage: e.Message));
+                var errorResponse = new GetGeolocationResponse(ipAddress, errorMessage: e.Message);
+                geolocations.Add(errorResponse);
             }
         }
 
-        return Ok(new GetGeolocationsResponse(response));
+        var response = new GetGeolocationsResponse(geolocations);
+        return Ok(response);
     }
 }
-
-public record GetGeolocationsRequest(IEnumerable<string> ipAddresses);
-
-public record GetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations);
-
-public record GetGeolocationResponse(string ipAddress, string? isoCode = null, string? errorMessage = null);
