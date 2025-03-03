@@ -19,7 +19,7 @@ public class CustomStartupFilter : IStartupFilter
 public class FakeRemoteIpAddressMiddleware
 {
     private readonly RequestDelegate next;
-    private static IPAddress? fakeIpAddress = IPAddress.Parse("127.0.0.1");
+    private static IPAddress? fakeIpAddress = IPAddress.Parse("206.172.131.27");
 
     public static void SetIpAddress(string? ipAddress) =>
         fakeIpAddress = ipAddress == null ?

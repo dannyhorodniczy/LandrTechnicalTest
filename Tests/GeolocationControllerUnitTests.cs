@@ -20,7 +20,6 @@ public class GeolocationControllerUnitTests
         _sut = new(new DatabaseReader("GeoLite2-Country_20250227/GeoLite2-Country.mmdb"), _logger);
     }
 
-    // TODO: ensure that you test the internalservererror case
     // TODO: maybe diversify the test cases :/
 
     [Theory]
