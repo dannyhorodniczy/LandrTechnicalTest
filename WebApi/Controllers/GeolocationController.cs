@@ -23,6 +23,10 @@ public class GeolocationController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType<GetGeolocationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<string>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<GetGeolocationResponse>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<GetGeolocationResponse>(StatusCodes.Status500InternalServerError)]
     public IActionResult GetGeolocation()
     {
         if (this.Request.HttpContext.Connection.RemoteIpAddress == null)
@@ -59,6 +63,8 @@ public class GeolocationController : ControllerBase
     }
 
     [HttpPost]
+    [ProducesResponseType<GetGeolocationsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<string>(StatusCodes.Status400BadRequest)]
     public IActionResult GetGeolocations(GetGeolocationsRequest request)
     {
         int ipAddressCount = request.IpAddresses.Count();

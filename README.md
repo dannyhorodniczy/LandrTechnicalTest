@@ -32,4 +32,6 @@ Note: When POSTing, you are required to pass the IP addresses with the following
 Here is an example of a POST request using [Postman](https://www.postman.com/):
 ![image](./postman_post_example.png)
 
+3. API documentation can be found at `http://localhost:9090/swagger/index.html`
+
 If there is a problem obtaining geolocation data for any of your IP addresses, an appropriate HTTP status code and error message will be provided.
