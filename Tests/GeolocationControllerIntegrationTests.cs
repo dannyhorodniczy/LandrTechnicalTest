@@ -33,7 +33,9 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
     [InlineData("103.100.236.88", "CN")]
     [InlineData("154.93.33.1", "RU")]
     [InlineData("180.87.172.22", "IN")]
-    public async Task GivenAValidIpAddress_WhenGetGeolocation_ThenGeolocationReturned(string ipAddress, string expectedIsoCode)
+    public async Task GivenAValidIpAddress_WhenGetGeolocation_ThenGeolocationReturned(
+        string ipAddress,
+        string expectedIsoCode)
     {
         // Given
         FakeRemoteIpAddressMiddleware.SetIpAddress(ipAddress);
