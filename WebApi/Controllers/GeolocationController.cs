@@ -61,7 +61,15 @@ public class GeolocationController : ControllerBase
     [HttpPost]
     public IActionResult GetGeolocations(GetGeolocationsRequest request)
     {
-        var geolocations = new List<GetGeolocationResponse>(request.IpAddresses.Count());
+        int ipAddressCount = request.IpAddresses.Count();
+        if (ipAddressCount == 0)
+        {
+            const string noIpAddressesMessage = "No IP addresses provided.";
+            _logger.LogInformation(noIpAddressesMessage);
+            return BadRequest(noIpAddressesMessage);
+        }
+
+        var geolocations = new List<GetGeolocationResponse>(ipAddressCount);
 
         foreach (var ipAddress in request.IpAddresses)
         {

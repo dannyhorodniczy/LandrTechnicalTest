@@ -192,4 +192,19 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
 
         }
     }
+
+    [Fact]
+    public async Task GivenNoIpAddresses_WhenGetGeolocations_ThenReturns400()
+    {
+        // Given
+        var client = _factory.CreateClient();
+        var request = new GetGeolocationsRequest(Enumerable.Empty<string>());
+        var jsonContent = JsonContent.Create(request);
+
+        // When
+        var response = await client.PostAsync("/Geolocation", jsonContent);
+
+        // Then
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

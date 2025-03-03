@@ -5,20 +5,19 @@
 
 ## Description
 
-Ensure that you have the following isntalled on your machine:
-- .NET 9 SDK & runtime
-- Docker Desktop
+To run the app , ensure that you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed on your machine.
 
-To run the application, navigate to the root of the repo and run the following commands:
+
+1. Navigate to the root of the repo and build an image + run a container with the following commands:
 ```
 docker build -t geolocation-service-image -f WebApi/Dockerfile .
 docker container run -d --name dannys-geolocation-service -p 9090:8080 geolocation-service-image
 ```
 Note: if port 9090 is already in use, you can change the port number in the second command, i.e, `-p my_available_port:8080`.
 
-Using your favourite API testing method, you can now GET and POST to `http://localhost:9090/Geolocation`
+2. Using your favourite API testing software, you can now GET and POST to `http://localhost:9090/Geolocation`
 
-When POSTing, you are required to pass the IP addresses with the following JSON in the body:
+Note: When POSTing, you are required to pass the IP addresses with the following JSON in the body:
 ```
 {
     "ipAddresses": [
@@ -28,4 +27,4 @@ When POSTing, you are required to pass the IP addresses with the following JSON 
 }
 ```
 
-If there is a problem obtaining geolocation data for any of your IP addresses, an error message will be provided.
+If there is a problem obtaining geolocation data for any of your IP addresses, an appropriate HTTP status code and error message will be provided.
