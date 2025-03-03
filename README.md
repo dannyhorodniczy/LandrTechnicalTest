@@ -1,11 +1,13 @@
-# LandrTechnicalTest
+# LANDR Technical Test
 
 ## Build status
 [![Build & Test](https://github.com/dannyhorodniczy/LandrTechnicalTest/actions/workflows/build.yml/badge.svg)](https://github.com/dannyhorodniczy/LandrTechnicalTest/actions/workflows/build.yml)
 
 ## Description
 
-To run the app , ensure that you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed on your machine.
+To build + run the app locally, you will need the latest [.NET 9 SDK + runtime](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) installed.
+
+To run the app as a docker container, ensure that you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed on your machine.
 
 
 1. Navigate to the root of the repo and build an image + run a container with the following commands:
