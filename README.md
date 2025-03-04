@@ -35,3 +35,5 @@ Here is an example of a POST request using [Postman](https://www.postman.com/):
 3. API documentation can be found at `http://localhost:9090/swagger/index.html`
 
 If there is a problem obtaining geolocation data for any of your IP addresses, an appropriate HTTP status code and error message will be provided.
+
+4. You can see the test results and coverage after each [build](https://github.com/dannyhorodniczy/LandrTechnicalTest/actions/workflows/build.yml), for an exmple: [click here](https://github.com/dannyhorodniczy/LandrTechnicalTest/actions/runs/13646360862/attempts/1#summary-38145908398)
