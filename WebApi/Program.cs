@@ -17,8 +17,6 @@ public partial class Program
             throw new Exception("No database set!");
         builder.Services.AddSingleton<IGeoIP2DatabaseReader>(new DatabaseReader(databasePath));
 
-        //builder.Services.AddProblemDetails();
-
         builder.Services.AddControllers();
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -33,12 +31,6 @@ public partial class Program
         });
 
         app.UseHttpsRedirection();
-
-        // mmmight not need these
-        // up to you
-        // https://www.milanjovanovic.tech/blog/problem-details-for-aspnetcore-apis
-        //app.UseExceptionHandler();
-        //app.UseStatusCodePages();
 
         app.MapControllers();
 

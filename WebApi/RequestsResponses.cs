@@ -10,4 +10,4 @@ public record GetGeolocationsRequest(IEnumerable<string> ipAddresses);
 
 public record GetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations);
 
-public record MultiStatusGetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations, ProblemDetails problemDetails);
+public record PartialContentGetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations, ProblemDetails problemDetails);

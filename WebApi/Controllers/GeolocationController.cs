@@ -32,33 +32,12 @@ public class GeolocationController : ControllerBase
     [ProducesResponseType<GetGeolocationResponse>(StatusCodes.Status500InternalServerError)]
     public IActionResult GetGeolocation()
     {
-        IPAddress? ipAddress = null;
-        if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) &&
-            IPAddress.TryParse(forwardedFor, out ipAddress))
-        {
-        }
-        else if (this.Request.Headers.TryGetValue("Forwarded", out var forwarded) &&
-                 IPAddress.TryParse(forwarded, out ipAddress))
-        {
-        }
-        else
-        {
-            ipAddress = this.Request.HttpContext.Connection.RemoteIpAddress;
-        }
+        var ipAddress = DetermineRemoteIpAddress();
 
         if (ipAddress == null)
         {
-            const string noRemoteIpMessage = "Unable to determine the remote IP address.";
-            _logger.LogInformation(noRemoteIpMessage);
-            var pd = new ProblemDetails
-            {
-                Title = "No remote IP address",
-                Detail = noRemoteIpMessage,
-                Status = StatusCodes.Status400BadRequest,
-                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1",
-                Instance = $"{this.Request.Method} {this.Request.Path}",
-
-            };
+            _logger.LogInformation("Unable to determine the remote IP address.");
+            var pd = WebApi.ProblemDetailsFactory.Create(ProblemType.NoIpAddressProvided, this.Request);
             return BadRequest(pd);
         }
 
@@ -73,54 +52,28 @@ public class GeolocationController : ControllerBase
         catch (AddressNotFoundException e)
         {
             _logger.LogError(e, "Address not found.");
-            var pd = new ProblemDetails
-            {
-                Title = "Address not found",
-                Detail = $"IpAddress: {this.Request.HttpContext.Connection.RemoteIpAddress}, Message: {e.Message}",
-                Status = StatusCodes.Status404NotFound,
-                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-                Instance = $"{this.Request.Method} {this.Request.Path}",
-
-            };
+            var pd = WebApi.ProblemDetailsFactory.Create(ProblemType.AddressNotFound, this.Request, e);
             return NotFound(pd);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Unknown error occurred.");
-            var pd = new ProblemDetails
-            {
-                Title = "Unknown error occurred.",
-                Detail = $"IpAddress: {this.Request.HttpContext.Connection.RemoteIpAddress}\n{e.Message}",
-                Status = StatusCodes.Status500InternalServerError,
-                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1",
-                Instance = $"{this.Request.Method} {this.Request.Path}",
-
-            };
-
+            var pd = WebApi.ProblemDetailsFactory.Create(ProblemType.UnknownError, this.Request, e);
             return StatusCode(StatusCodes.Status500InternalServerError, pd);
         }
     }
 
     [HttpPost]
     [ProducesResponseType<GetGeolocationsResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType<MultiStatusGetGeolocationsResponse>(StatusCodes.Status207MultiStatus)]
+    [ProducesResponseType<PartialContentGetGeolocationsResponse>(StatusCodes.Status206PartialContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public IActionResult GetGeolocations(GetGeolocationsRequest request)
     {
-        var pd = new ProblemDetails
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1",
-            Instance = $"{this.Request.Method} {this.Request.Path}"
-        };
-
         int ipAddressCount = request.ipAddresses.Count();
         if (ipAddressCount == 0)
         {
-            const string noIpAddressesMessage = "No IP addresses provided.";
-            pd.Title = "No remote IP address";
-            pd.Detail = noIpAddressesMessage;
-            _logger.LogInformation(noIpAddressesMessage);
+            _logger.LogInformation("No IP addresses provided.");
+            var pd = WebApi.ProblemDetailsFactory.Create(ProblemType.NoIpAddressProvided, this.Request);
             return BadRequest(pd);
         }
 
@@ -148,21 +101,37 @@ public class GeolocationController : ControllerBase
             return Ok(response);
         }
 
-        pd.Extensions = new Dictionary<string, object?>() { { "errors", errors } };
-
         if (geolocations.Count == 0)
         {
-            const string unableToFindGeolocationMessage = "Unable to find geolocation for all IP addresses.";
-            pd.Title = unableToFindGeolocationMessage;
-            pd.Detail = unableToFindGeolocationMessage;
-            return BadRequest(pd);
+            var pdBadRequest = WebApi.ProblemDetailsFactory.Create(ProblemType.UnableToFindGeolocations, this.Request, errors: errors);
+            return BadRequest(pdBadRequest);
         }
 
-        const string unableToFindSomeGeolocationsMessage = "Unable to find geolocation for some IP addresses.";
-        pd.Title = unableToFindSomeGeolocationsMessage;
-        pd.Detail = unableToFindSomeGeolocationsMessage;
+        var pdPartialContent = WebApi.ProblemDetailsFactory.Create(
+            ProblemType.UnableToFindGeolocations,
+            this.Request,
+            errors: errors,
+            statusCode: StatusCodes.Status206PartialContent);
+        var partialContent = new PartialContentGetGeolocationsResponse(geolocations, pdPartialContent);
+        return StatusCode(StatusCodes.Status206PartialContent, partialContent);
+    }
 
-        var multi = new MultiStatusGetGeolocationsResponse(geolocations, pd);
-        return StatusCode(StatusCodes.Status207MultiStatus, multi);
+    private IPAddress? DetermineRemoteIpAddress()
+    {
+        IPAddress? ipAddress = null;
+        if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) &&
+            IPAddress.TryParse(forwardedFor, out ipAddress))
+        {
+        }
+        else if (this.Request.Headers.TryGetValue("Forwarded", out var forwarded) &&
+                 IPAddress.TryParse(forwarded, out ipAddress))
+        {
+        }
+        else
+        {
+            ipAddress = this.Request.HttpContext.Connection.RemoteIpAddress;
+        }
+
+        return ipAddress;
     }
 }

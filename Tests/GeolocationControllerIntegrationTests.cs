@@ -214,9 +214,9 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
         var response = await client.PostAsync("/Geolocation", jsonContent);
 
         // Then
-        response.StatusCode.Should().Be(HttpStatusCode.MultiStatus);
+        response.StatusCode.Should().Be(HttpStatusCode.PartialContent);
 
-        var geolocationsResponse = await response.Content.ReadFromJsonAsync<MultiStatusGetGeolocationsResponse>();
+        var geolocationsResponse = await response.Content.ReadFromJsonAsync<PartialContentGetGeolocationsResponse>();
         var geolocations = geolocationsResponse!.geolocations.ToArray();
 
         for (int i = 0; i < expectedIpAddresses.Length; i++)
