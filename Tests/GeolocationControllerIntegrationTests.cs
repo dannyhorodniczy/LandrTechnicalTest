@@ -2,6 +2,7 @@ using FluentAssertions;
 using MaxMind.GeoIP2;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,8 +49,49 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var geolocation = await response.Content.ReadFromJsonAsync<GetGeolocationResponse>();
-        geolocation!.Country!.IsoCode.Should().BeEquivalentTo(expectedIsoCode);
-        geolocation.ErrorMessage.Should().BeNull();
+        geolocation!.country.IsoCode.Should().BeEquivalentTo(expectedIsoCode);
+    }
+
+    [Theory]
+    [InlineData("17.32.195.2", "US")]
+    public async Task GivenXForwardedForValidIpAddress_WhenGetGeolocation_ThenGeolocationReturned(
+        string ipAddress,
+        string expectedIsoCode)
+    {
+        // Given
+        FakeRemoteIpAddressMiddleware.SetIpAddress("0.0.0.0");
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", ipAddress);
+
+        // When
+        var response = await client.GetAsync("/Geolocation");
+
+        // Then
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var geolocation = await response.Content.ReadFromJsonAsync<GetGeolocationResponse>();
+        geolocation!.country.IsoCode.Should().BeEquivalentTo(expectedIsoCode);
+    }
+
+    [Theory]
+    [InlineData("60.32.195.2", "JP")]
+    public async Task GivenForwardedValidIpAddress_WhenGetGeolocation_ThenGeolocationReturned(
+        string ipAddress,
+        string expectedIsoCode)
+    {
+        // Given
+        FakeRemoteIpAddressMiddleware.SetIpAddress("0.0.0.0");
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("Forwarded", ipAddress);
+
+        // When
+        var response = await client.GetAsync("/Geolocation");
+
+        // Then
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var geolocation = await response.Content.ReadFromJsonAsync<GetGeolocationResponse>();
+        geolocation!.country.IsoCode.Should().BeEquivalentTo(expectedIsoCode);
     }
 
     [Fact]
@@ -64,6 +106,8 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
 
         // Then
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetails.Should().NotBeNull();
     }
 
     [Fact]
@@ -78,6 +122,8 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
 
         // Then
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetails.Should().NotBeNull();
     }
 
     [Fact]
@@ -99,6 +145,8 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
 
         // Then
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetails.Should().NotBeNull();
     }
 
     [Theory]
@@ -119,13 +167,12 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var geolocationsResponse = await response.Content.ReadFromJsonAsync<GetGeolocationsResponse>();
-        var geolocations = geolocationsResponse!.Geolocations.ToArray();
+        var geolocations = geolocationsResponse!.geolocations.ToArray();
 
         for (int i = 0; i < expectedIsoCodes.Length; i++)
         {
-            geolocations[i].IpAddress.Should().BeEquivalentTo(ipAddresses[i]);
-            geolocations[i].Country!.IsoCode.Should().BeEquivalentTo(expectedIsoCodes[i]);
-            geolocations[i].ErrorMessage.Should().BeNull();
+            geolocations[i].ipAddress.Should().BeEquivalentTo(ipAddresses[i]);
+            geolocations[i].country!.IsoCode.Should().BeEquivalentTo(expectedIsoCodes[i]);
         }
     }
 
@@ -142,26 +189,21 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
         var response = await client.PostAsync("/Geolocation", jsonContent);
 
         // Then
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var geolocationsResponse = await response.Content.ReadFromJsonAsync<GetGeolocationsResponse>();
-        var geolocations = geolocationsResponse!.Geolocations.ToArray();
-
-        for (int i = 0; i < ipAddresses.Length; i++)
-        {
-            geolocations[i].IpAddress.Should().BeEquivalentTo(ipAddresses[i]);
-            geolocations[i].ErrorMessage.Should().NotBeNull();
-            geolocations[i].Country.Should().BeNull();
-        }
+        var problemDetailsResponse = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetailsResponse.Should().NotBeNull();
     }
 
     [Theory]
     [InlineData(
         new string[] { "127.0.0.1", "206.172.131.27", "not_an_ip_address" },
-        new string?[] { null, "CA", null })]
-    public async Task GivenValidAndInvalidIpAddresses_WhenGetGeolocations_ThenGeolocationsAndErrorsReturned(
+        new string[] { "206.172.131.27" },
+        new string[] { "CA" })]
+    public async Task GivenValidAndInvalidIpAddresses_WhenGetGeolocations_ThenReturns207(
         string[] ipAddresses,
-        string?[] expected)
+        string[] expectedIpAddresses,
+        string[] expectedIsoCodes)
     {
         // Given
         var client = _factory.CreateClient();
@@ -172,27 +214,18 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
         var response = await client.PostAsync("/Geolocation", jsonContent);
 
         // Then
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.PartialContent);
 
-        var geolocationsResponse = await response.Content.ReadFromJsonAsync<GetGeolocationsResponse>();
-        var geolocations = geolocationsResponse!.Geolocations.ToArray();
+        var geolocationsResponse = await response.Content.ReadFromJsonAsync<PartialContentGetGeolocationsResponse>();
+        var geolocations = geolocationsResponse!.geolocations.ToArray();
 
-        for (int i = 0; i < ipAddresses.Length; i++)
+        for (int i = 0; i < expectedIpAddresses.Length; i++)
         {
-            geolocations[i].IpAddress.Should().BeEquivalentTo(ipAddresses[i]);
-
-            if (expected[i] == null)
-            {
-                geolocations[i].ErrorMessage.Should().NotBeNull();
-                geolocations[i].Country.Should().BeNull();
-            }
-            else
-            {
-                geolocations[i].Country!.IsoCode.Should().BeEquivalentTo(expected[i]);
-                geolocations[i].ErrorMessage.Should().BeNull();
-            }
-
+            geolocations[i].ipAddress.Should().BeEquivalentTo(expectedIpAddresses[i]);
+            geolocations[i].country!.IsoCode.Should().BeEquivalentTo(expectedIsoCodes[i]);
         }
+
+        geolocationsResponse.problemDetails.Should().NotBeNull();
     }
 
     [Fact]
@@ -208,5 +241,7 @@ public class GeolocationControllerIntegrationTests : IClassFixture<WebApplicatio
 
         // Then
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problemDetailsResponse = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetailsResponse.Should().NotBeNull();
     }
 }
