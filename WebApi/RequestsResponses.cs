@@ -1,27 +1,13 @@
 using MaxMind.GeoIP2.Model;
+using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace WebApi;
 
-public class GetGeolocationResponse(string? ipAddress = null, Country? country = null, string? errorMessage = null)
-{
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? IpAddress { get; } = ipAddress;
+public record GetGeolocationResponse(string ipAddress, Country country);
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Country? Country { get; } = country;
+public record GetGeolocationsRequest(IEnumerable<string> ipAddresses);
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ErrorMessage { get; } = errorMessage;
-}
+public record GetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations);
 
-public class GetGeolocationsRequest(IEnumerable<string> ipAddresses)
-{
-    public IEnumerable<string> IpAddresses { get; } = ipAddresses;
-}
-
-public class GetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations)
-{
-    public IEnumerable<GetGeolocationResponse> Geolocations { get; } = geolocations;
-}
+public record MultiStatusGetGeolocationsResponse(IEnumerable<GetGeolocationResponse> geolocations, ProblemDetails problemDetails);
